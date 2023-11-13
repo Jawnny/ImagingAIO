@@ -35,11 +35,13 @@ It is helpful to have more than just one eth interface on your server depending 
 * If choosing a VM image then also configure a windows machine(or linux if needed) to be your saved image target
   * Its best to only give it 50GB of storage to keep the primary partiton as small as possible
   * This one should only have a single NIC connected to a server environment. The server will provide NAT/Internet access
+* **NVMe and SDA harddrives will require separate servers or images due to how Linux's filesystem treats the different types of drives. Either located in /nvme0n1 or /sda**
 # Network configuration
 This section will cover your VMware network as well as your physical network topology.
 * Configure as many virtual switches as you plan on having DRBL servers + 1 more for internet access
 * Add a port group for each VM + 1 more for internet access then assign them to their respective vSwitch
 * Per each VM ensure they are connected to both the internet port group and/or their respective client environment port group
+* Example of network map: https://i.imgur.com/xWnbR4K.png
 # Inventorying client
 Any laptop or desktop will work for the inventorying client as long as it is hooked up to a printer(or not if you do not require asset tags) and has Python3 and Adobe Reader(free) installed. Alternatively you can convert the imaging_utility.py into a packaged executable via auto-py-to-exe or a similar program.
 * Install Adobe Reader
@@ -47,10 +49,22 @@ Any laptop or desktop will work for the inventorying client as long as it is hoo
 * Ensure your directory structure is correct:
   * Image Processing
     * Barcode PDFs
-    *  HW_Inventory
+    *  HW_Inventory(this is the network share)
     *  Imaging Reports
     *  Templates
         * Master Template.xlsx
         * Master_Blank.pdf
     * imaging_utility.py
 * Run imaging_utility.py
+# imaging_utility.py usage
+The imaging software is constantly checking the HW_Inventory folder for reports sent by the HWinventory.ps1 script. When a report is received it transcribes the information into a spreadsheet labled with todays date and time as of opening the program. The spreadsheet is saved every time a new report is received so **do not keep the spreadsheet open otherwise it will cause a permissions error.** It then generates a barcode PDF and and prints it using Adobe Reader. The barcode is also archived in Barcode PDFs/current_date in case an asset tag isn't printed for some reason; you can reprint from the archive. 
+# HWinventory.ps1 and get_update.ps1 configuration
+* Firstly you will need to modify the HWinventory.ps1 script to point to the IP of your network share. This can be found on line 4, 5(cosmetic), 20, and 24.
+* The script will wait until it can both ping the network share and google DNS servers to ensure it runs without error. If you would like to run the script without needed internet access simply delete lines 9-12.
+* Put the scripts somewhere on your source image.
+* Open Registry Editor as admin
+* Navigate to: Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce
+* Create a new String Value
+* Name the entry "!HWInventory" and "!get-updates" respectively. Note that the "!" deletes the registry entry after being run once.
+* For value put: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -executionpolicy bypass -command " & '[path_to_script]' 
+
